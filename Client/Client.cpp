@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     else if (numBytes != request.size())
         DieWithUserMessage("sending file failed", "sent unexpected number of bytes");
 
-    std::ofstream outputFile("received_file.txt", std::ios::binary); // Open the file for binary output
+//    std::ofstream outputFile("received_file.txt", std::ios::binary); // Open the file for binary output
 
     char buffer[BUFFERSIZE];
     ssize_t totalBytesRcvd = 0;
@@ -82,10 +82,10 @@ int main(int argc, char *argv[]) {
             break; // Connection closed by the server
 
         totalBytesRcvd += numBytesReceived;
-        outputFile.write(buffer, numBytesReceived); // Write received data to the file
+//        outputFile.write(buffer, numBytesReceived); // Write received data to the file
     }
 
-    outputFile.close();
+//    outputFile.close();
 
     if (totalBytesRcvd == 0)
         DieWithUserMessage("receiving file", "connection closed prematurely");
