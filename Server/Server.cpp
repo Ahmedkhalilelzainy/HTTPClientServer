@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 using namespace std;
 //http get c.png 7070
@@ -28,80 +29,49 @@ void DieWithSystemMessage(const char *msg) {
     exit(1);
 }
 
-//void HandleTCPClient(int clntSocket) {
-//    char buffer[BUFFERSIZE]; // Buffer for echo string
-//// Receive message from client
-//    ssize_t numBytesRcvd = recv(clntSocket, buffer, BUFFERSIZE, 0);
-//    if (numBytesRcvd < 0)
-//        DieWithSystemMessage("recv() failed");// Send received string and receive again until end of stream
-//    while (numBytesRcvd > 0) { // 0 indicates end of stream
-//// Echo message back to client
-//        ssize_t numBytesSent = send(clntSocket, buffer, numBytesRcvd, 0);
-//        if (numBytesSent < 0)
-//            DieWithSystemMessage("send() failed");
-//        else if (numBytesSent != numBytesRcvd)
-//            DieWithUserMessage("send()", "sent unexpected number of bytes");
-//// See if there is more data to receive
-//        numBytesRcvd = recv(clntSocket, buffer, BUFFERSIZE, 0);
-//        if (numBytesRcvd < 0)
-//            DieWithSystemMessage("recv() failed");
-//    }
-//    close(clntSocket); // Close client socket
-//}
 
 
-void processBuffer(const char *buffer, size_t bytesRead) {
-    // Add your processing logic here
-    // This function is called for each chunk of data read
 
-    // Check if there is any data in the buffer before printing
-    cout<<buffer<<"\n";
-    if (bytesRead > 0) {
-        printf("Processed buffer: %.*s\n", (int)bytesRead, buffer);
-    }
-}
 
-void *HandleTCPClient(void *arg) {
-    int clntSock = *((int *) arg);
-    free(arg); // Free memory allocated for the argument
-
-    char buffer[BUFFERSIZE]; // BUFFERSIZE is assumed to be defined somewhere
-    ssize_t numBytesRcvd;
-
-    // Receive and send data in a loop until the client closes the connection
-    while ((numBytesRcvd = recv(clntSock, buffer, BUFFERSIZE - 1, 0)) > 0) {
-        buffer[numBytesRcvd] = '\0'; // Null-terminate the received data
-        printf("Received: %s", buffer);
-
-        // Process the received data or perform other actions as needed
-
-        // Echo the data back to the client
-        ssize_t numBytesSent = send(clntSock, buffer, numBytesRcvd, 0);
-        if (numBytesSent < 0)
-            DieWithSystemMessage("send() failed");
-        else if (numBytesSent != numBytesRcvd)
-            DieWithUserMessage("send()", "sent unexpected number of bytes");
-    }
-
-    if (numBytesRcvd == 0) {
-        // Client closed the connection
-        printf("Client closed the connection.\n");
-    } else if (numBytesRcvd < 0) {
-        // Error occurred while receiving
-        DieWithSystemMessage("recv() failed");
-    }
-
-    close(clntSock); // Close the client socket
-    pthread_exit(NULL); // Exit the thread
-}
-
-//    std::string sourceFolderPath = "/home/madyelzainy/CLionProjects/untitled3/Server/";
-//    std::string destinationFolderPath = "/home/madyelzainy/CLionProjects/untitled3/Client/";
-//    std::string fileName = "test1.txt";
+//void *HandleTCPClient(void *arg) {
+////    int clntSock = *((int *) arg);
+////    free(arg); // Free memory allocated for the argument
+////
+////    char buffer[BUFFERSIZE]; // BUFFERSIZE is assumed to be defined somewhere
+////    ssize_t numBytesRcvd;
+////
+////    // Receive and send data in a loop until the client closes the connection
+////    while ((numBytesRcvd = recv(clntSock, buffer, BUFFERSIZE - 1, 0)) > 0) {
+////        buffer[numBytesRcvd] = '\0'; // Null-terminate the received data
+////        printf("Received: %s", buffer);
+////
+////        // Process the received data or perform other actions as needed
+////
+////        // Echo the data back to the client
+////        ssize_t numBytesSent = send(clntSock, buffer, numBytesRcvd, 0);
+////        if (numBytesSent < 0)
+////            DieWithSystemMessage("send() failed");
+////        else if (numBytesSent != numBytesRcvd)
+////            DieWithUserMessage("send()", "sent unexpected number of bytes");
+////    }
+////
+////    if (numBytesRcvd == 0) {
+////        // Client closed the connection
+////        printf("Client closed the connection.\n");
+////    } else if (numBytesRcvd < 0) {
+////        // Error occurred while receiving
+////        DieWithSystemMessage("recv() failed");
+////    }
+////
+////    close(clntSock); // Close the client socket
+////    pthread_exit(NULL); // Exit the thread
+////}
 //
-//    // Construct the full paths to the source and destination files
+//    std::string sourceFolderPath = "/home/madyelzainy/CLionProjects/untitled3/Server/";
+//    std::string fileName = "images.jpeg";
+//
+//    // Construct the full path to the source file
 //    std::string sourceFilePath = sourceFolderPath + fileName;
-//    std::string destinationFilePath = destinationFolderPath + fileName;
 //
 //    // Open the source file for reading
 //    std::ifstream sourceFile(sourceFilePath);
@@ -112,30 +82,119 @@ void *HandleTCPClient(void *arg) {
 //        return reinterpret_cast<void *>(1);
 //    }
 //
+//    // Read the entire content of the file into a string
+//    std::ostringstream fileContentStream;
+//    fileContentStream << sourceFile.rdbuf(); // Read the entire file into the stream
+//
+//    // Close the source file
+//    sourceFile.close();
+//
+//    // Get the content as a string
+//    std::string fileContent = fileContentStream.str();
+//    cout<<fileContent;
+//    cout.flush();
+//    // Now 'fileContent' contains the content of the file as a string
+//
+//    // Specify the destination file path
+//    std::string destinationFolderPath = "/home/madyelzainy/CLionProjects/untitled3/Client/";
+//    std::string destinationFileName = "images.jpeg";
+//    std::string destinationFilePath = destinationFolderPath + destinationFileName;
+//
 //    // Open the destination file for writing
-//    std::ofstream destinationFile(destinationFilePath);
+//    std::ofstream destinationFile(destinationFilePath, std::ios::binary);
 //
 //    // Check if the destination file is open
 //    if (!destinationFile.is_open()) {
 //        std::cerr << "Error opening destination file: " << destinationFilePath << std::endl;
-//        sourceFile.close();  // Close the source file before exiting
 //        return reinterpret_cast<void *>(1);
 //    }
 //
-//    // Read and write the contents of the file line by line
-//    std::string line;
-//    while (std::getline(sourceFile, line)) {
-//        // Write each line to the destination file
-//        destinationFile << line << std::endl;
-//    }
+//    // Write the content to the destination file
+//    destinationFile << fileContent;
 //
-//    // Close the files
-//    sourceFile.close();
+//    // Close the destination file
 //    destinationFile.close();
 //
-//    std::cout << "File copied successfully from " << sourceFilePath << " to " << destinationFilePath << std::endl;
-//    return  0;
+//    std::cout << "File content copied from " << sourceFilePath << " to " << destinationFilePath << std::endl;
+//
+//    return 0;
 //}
+#define BUFFERSIZE 1024
+
+void ParseHttpGet(const std::string& httpRequest, std::string& filePath) {
+    // Assuming a simple GET request format like "GET /path/to/file HTTP/1.1"
+    std::istringstream ss(httpRequest);
+    std::string method, path, version;
+    ss >> method >> path ;
+    cout<<method<<" "<<path<<"\n";
+
+    if (method == "GET") {
+        // Extract the file path from the request
+        filePath = path.substr(1); // Remove leading '/'
+    }
+}
+
+void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::string& fileContents) {
+    // Assuming a simple POST request format like "POST /path/to/file HTTP/1.1\nContent-Length: 12\n\nHello, world!"
+    std::istringstream ss(httpRequest);
+    std::string method, path, version;
+    ss >> method >> path ;
+    if (method == "POST") {
+        // Extract the file path from the request
+        filePath = path.substr(1); // Remove leading '/'
+
+        // Find the position of the double newline indicating the start of the content
+        size_t contentStart = httpRequest.find("\n\n");
+
+        if (contentStart != std::string::npos) {
+            // Extract the content from the request
+            fileContents = httpRequest.substr(contentStart + 2);
+        }
+    }
+}
+
+void *HandleTCPClient(void *arg) {
+    int clientSock = *((int *)arg);
+    free(arg);
+
+    char buffer[BUFFERSIZE];
+
+    // Receive and send data in a loop until the client closes the connection
+    while (true) {
+        ssize_t numBytesRcvd = recv(clientSock, buffer, BUFFERSIZE - 1, 0);
+
+        if (numBytesRcvd > 0) {
+            buffer[numBytesRcvd] = '\0'; // Null-terminate the received data
+
+            std::string httpRequest(buffer);
+
+            std::string method, path, version, filePath, fileContents;
+
+            // Check if it's a GET or POST request
+            if (httpRequest.find("GET") == 0) {
+                ParseHttpGet(httpRequest, filePath);
+                std::cout << "Received GET request for file: " << filePath << std::endl;
+            } else if (httpRequest.find("POST") == 0) {
+                ParseHttpPost(httpRequest, filePath, fileContents);
+                std::cout << "Received POST request for file: " << filePath << std::endl;
+                std::cout << "File contents: " << fileContents << std::endl;
+            } else {
+                std::cerr << "Unsupported HTTP method" << std::endl;
+            }
+        } else if (numBytesRcvd == 0) {
+            std::cerr << "Client closed the connection." << std::endl;
+            break;  // Exit the loop if the client closes the connection
+        } else {
+            std::cerr << "Error receiving data from client." << std::endl;
+            break;  // Exit the loop if an error occurs
+        }
+    }
+
+    close(clientSock);
+    pthread_exit(NULL);
+}
+
+
 
 int main(int argc, char *argv[]) {
     if (argc != 2) // Test for correct number of arguments

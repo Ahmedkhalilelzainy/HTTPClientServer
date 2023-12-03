@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 int const BUFFERSIZE = 100;
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]) {
     char *servIP = argv[1];
 // First arg: server IP address (dotted quad)
 //should be filepath
-    char *echoString = argv[2]; // Second arg: string to echo
+    char *filepath = "/home/madyelzainy/requests.txt"; // Second arg: string to echo
 // Third arg (optional): server port (numeric). 7 is well-known echo port
     in_port_t servPort = (argc == 4) ? atoi(argv[3]) : 7;
 // Create a reliable, stream socket using TCP
@@ -54,38 +55,42 @@ int main(int argc, char *argv[]) {
 // Establish the connection to the echo server
     if (connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         DieWithSystemMessage("connection failed");
-    size_t echoStringLen = strlen(echoString); // Determine input length
-// Send the string to the server
-//  if request is get send the request as a string and recieve response and a string(file) and save it using filestream
-// if request is post take as file stream send in request body  and recieve response
+//    requests should be read from file
+    string request="get /home/madyelzainy/CLionProjects/untitled3/Server/images.jpeg 8008";
+//    string request="get /home/madyelzainy/CLionProjects/untitled3/Server/images.jpeg 127.0.0.1 (8008)";
+//    string request="post /home/madyelzainy/CLionProjects/untitled3/Server/images.jpeg 127.0.0.1 (8008) ";
+//   ana 3yzha kda
+//    string request="post Server/images.jpeg 127.0.0.1 (8008) file as a string ana 3mlto ";
 
-    ssize_t numBytes = send(sock, echoString, echoStringLen, 0);
+    size_t request_size = strlen("./c 127.0.0.1 /home/madyelzainy/CLionProjects/untitled3/Server/images.jpeg 8008");
+    ssize_t numBytes = send(sock, request.c_str(), request.size(), 0);
     if (numBytes < 0)
         DieWithSystemMessage("sending file failed");
-    else if (numBytes != echoStringLen)
+    else if (numBytes != request.size())
         DieWithUserMessage("sending file failed", "sent unexpected number of bytes");
-// Receive the same string back from the server
-    unsigned int totalBytesRcvd = 0; // Count of total bytes received
-    fputs("Received: ", stdout);
-// Setup to print the echoed string
-// echoStringLen should be request
-    while (totalBytesRcvd < echoStringLen) {
-        char buffer[BUFFERSIZE]; // I/O buffer
-/* Receive up to the buffer size (minus 1 to leave space for
-a null terminator) bytes from the sender */
-    // request send
-        numBytes = recv(sock, buffer, BUFFERSIZE - 1, 0);
-        if (numBytes < 0)
+
+    std::ofstream outputFile("received_file.txt", std::ios::binary); // Open the file for binary output
+
+    char buffer[BUFFERSIZE];
+    ssize_t totalBytesRcvd = 0;
+
+    while (true) {
+        ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE, 0);
+        if (numBytesReceived < 0)
             DieWithSystemMessage("receiving file failed");
-        else if (numBytes == 0)
-            DieWithUserMessage("receiving file", "connection closed prematurely");
-        totalBytesRcvd += numBytes; // Keep tally of total bytes
-        buffer[numBytes] = '\0';
-// Terminate the string!
-        fputs(buffer, stdout);
-// Print the echo buffer
+        else if (numBytesReceived == 0)
+            break; // Connection closed by the server
+
+        totalBytesRcvd += numBytesReceived;
+        outputFile.write(buffer, numBytesReceived); // Write received data to the file
     }
-//
-    fputc('\n', stdout); // Print a final linefeed
-    exit(0);
+
+    outputFile.close();
+
+    if (totalBytesRcvd == 0)
+        DieWithUserMessage("receiving file", "connection closed prematurely");
+
+    std::cout << "Received file successfully and saved as 'received_file.txt'" << std::endl;
+
+    close(sock);
 }
