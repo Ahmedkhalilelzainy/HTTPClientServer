@@ -92,6 +92,7 @@ void ParseHttpGet(const std::string& httpRequest, std::string& filePath,string &
     ss >> method >> path ;
     filePath=path;
     change_file_to_string(path,file);
+    saveString(file,"images.jpeg");
 }
 
 void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::string& fileContents) {
@@ -157,7 +158,7 @@ void *HandleTCPClient(void *arg) {
             std::cerr << "ClientDir closed the connection." << std::endl;
             break;  // Exit the loop if the client closes the connection
         } else {
-            std::cerr << "Error receiving data from client." << std::endl;
+//            std::cerr << "Error receiving data from client." << std::endl;
             break;  // Exit the loop if an error occurs
         }
     }

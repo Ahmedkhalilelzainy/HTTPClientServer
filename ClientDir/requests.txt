@@ -1,1 +1,1 @@
-client_get /home/madyelzainy/Downloads/test1.txt 127.0.0.1 (8008)
+client_get /home/madyelzainy/Downloads/images.jpeg 127.0.0.1 (8008)

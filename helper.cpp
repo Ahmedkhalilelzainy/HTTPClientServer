@@ -18,60 +18,35 @@ void DieWithSystemMessage(const char *msg) {
     perror(msg);
     exit(1);
 }
-
-void change_file_to_string(const std::string& sourceFilePath, std::string& fileContent) {
-    // Open the source file for reading
-    std::ifstream sourceFile(sourceFilePath);
-
-    // Check if the source file is open
-    if (!sourceFile.is_open()) {
-        DieWithSystemMessage("Error opening source file");
+//        DieWithSystemMessage("Error opening file");
+void change_file_to_string(string filePath,string &fileContent){
+    std::ifstream infile(filePath);
+    if (!infile) {
+        DieWithSystemMessage("Error opening file");
     }
 
-    // Read the entire content of the file into a string, removing trailing newline characters
-    std::ostringstream fileContentStream;
+    std::string content;
     std::string line;
 
-    while (getline(sourceFile, line)) {
-        fileContentStream << line;  // Add newline between lines
+    while (std::getline(infile, line)) {
+        content += line +'\n'; // You can modify this line based on your requirements
     }
+    content.pop_back();
 
-    // Close the source file
-    sourceFile.close();
-
-    // Get the content as a string
-    fileContent = fileContentStream.str();
-
-    std::cout << "File content size: " << fileContent.size() ;
+    infile.close();
+    fileContent=content;
 }
-void saveString(string fileContent,string fileName){
-    char cwd[PATH_MAX]; // PATH_MAX is a constant that represents the maximum path length
 
-    if (getcwd(cwd, sizeof(cwd)) == nullptr) {
-        perror("getcwd() error");
-        return; // Return an error code
-    }
-//     Specify the destination file path
-    string destinationFolderPath(cwd);
-    string destinationFilePath = destinationFolderPath +"/"+fileName;
 
-    // Open the destination file for writing
-    std::ofstream destinationFile(destinationFilePath,std::ios::binary);
-
-    // Check if the destination file is open
-    if (!destinationFile.is_open()) {
-        std::cerr << "Error opening destination file: " << destinationFilePath << std::endl;
-        DieWithSystemMessage("Error opening destination file");
+void saveString(string content,string fileName){
+    std::ofstream outfile(fileName);
+    if (!outfile) {
+        std::cerr << "Error opening file for writing: " << fileName << std::endl;
         return;
     }
 
-    // Write the content to the destination file
-    destinationFile << fileContent;
-
-    // Close the destination file
-    destinationFile.close();
-
-    std::cout << "File content copied from client to " << destinationFilePath << std::endl;
+    outfile << content;
+    outfile.close();
 }
 string ExtractFilename(const std::string& filePath) {
     size_t lastSlash = filePath.find_last_of('/');
