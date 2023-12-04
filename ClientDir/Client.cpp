@@ -25,21 +25,28 @@ void handleResponse(string request,string path,int sock,bool get){
     ssize_t totalBytesRcvd = 0;
     while (true) {
         ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE-1, 0);
+
         if (numBytesReceived < 0){
             DieWithSystemMessage("receiving file failed");
         }
         else if (numBytesReceived == 0) {
             break; // Connection closed by the server
         }
+        cout<<buffer<<"\n";
         totalBytesRcvd += numBytesReceived;
-        string temp(buffer);
+
+        string temp (buffer);
+//        cout<<temp<<" fasla "<<"\n";
         response+=temp;
-        if(response.find("\\r\\n\\r\\n")!=0){
+        if(response.find("\\r\\n\\r\\n")!=std::string::npos){
+
             break;
         }
-    }
 
-    cout<<response;
+    }
+//    cout<<response<<"\n";
+
+//    cout<<response;
 //    saveString(response, ExtractFilename(path));
     if (totalBytesRcvd == 0)
         DieWithUserMessage("receiving file", "connection closed prematurely");
@@ -128,8 +135,8 @@ int main(int argc, char *argv[]) {
         DieWithSystemMessage("cwd error"); // Return an error code
     }
     string filepath(cwd);
-    filepath+=("/ClientDir/requests.txt");
-//    cout<<filepath<<"\n";
+    filepath+=("/requests.txt");
+
     // Open a file for reading
     ifstream inputFile(filepath);
 

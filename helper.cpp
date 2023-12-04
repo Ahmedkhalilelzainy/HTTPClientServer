@@ -39,7 +39,7 @@ void change_file_to_string(string filePath,string &fileContent){
 
 
 void saveString(string content,string fileName){
-    std::ofstream outfile(fileName);
+    std::ofstream outfile(fileName,std::ios::binary);
     if (!outfile) {
         std::cerr << "Error opening file for writing: " << fileName << std::endl;
         return;

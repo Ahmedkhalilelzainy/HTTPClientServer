@@ -71,11 +71,11 @@ void build_response(string&file ,bool succeded,bool get){
 //            temp+=("Content-length: "+to_string(calculate_size(s)));
 //            temp+="\n\n";
             temp+=file+"\\r\\n";
-            cout<<file.size();
+
         }
         file=temp+"\\r\\n";
         file+='\0';
-
+//     cout<<file<<"\n";
     }
     else{
         temp="HTTP/1.1 404 NotFound \\r\\n";
@@ -92,7 +92,7 @@ void ParseHttpGet(const std::string& httpRequest, std::string& filePath,string &
     ss >> method >> path ;
     filePath=path;
     change_file_to_string(path,file);
-    saveString(file,"images.jpeg");
+
 }
 
 void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::string& fileContents) {
@@ -135,11 +135,13 @@ void *HandleTCPClient(void *arg) {
             if (httpRequest.find("GET") == 0) {
                 ParseHttpGet(httpRequest, filePath, file);
                 build_response(file, true, true);
-                cout<<file<<"\n";
+//                cout<<file<<"\n";
                 while (!file.empty()) {
                     // Send the contents of 'file' in chunks
-                    size_t bytesToSend = min(BUFFERSIZE - 1, (int)file.size());
+                    size_t bytesToSend = min(BUFFERSIZE, (int)file.size());
+
                     std::string buf = file.substr(0, bytesToSend);
+                    cout<<buf<<"\n";
                     send(clientSock, buf.c_str(), buf.size(), 0);
                     file.erase(0, bytesToSend);
                     // If there's more to send, continue the loop
