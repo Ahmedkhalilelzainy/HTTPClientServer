@@ -9,7 +9,7 @@
 using namespace std;
 //http get c.png 7070
 //http get c.png 7070
-static const int MAXPENDING = 5; // Maximum outstanding connection requests
+static const int MAXPENDING = 10; // Maximum outstanding connection requests
 int const BUFFERSIZE = 1024;
 
 //void *HandleTCPClient(void *arg) {
@@ -49,7 +49,9 @@ int const BUFFERSIZE = 1024;
 //HTTP/1.1 200 OK \r\n
 //data
 #define BUFFERSIZE 1024
-int calculate_size(int &Request_size){
+int calculate_size(int data_size){
+    string temp="HTTP/1.1 200 OK\\r\\n content-length: \\r\\n\\r\\n";
+    int Request_size=data_size+temp.size();
     int Request_size_no_of_digits= to_string(Request_size).size();
     int Request_size_after_adding_no_of_digits= to_string(Request_size+Request_size_no_of_digits).size();
     if((Request_size_after_adding_no_of_digits)!=Request_size_no_of_digits){
@@ -60,39 +62,64 @@ int calculate_size(int &Request_size){
     }
     return Request_size;
 }
-void build_response(string&file ,bool succeded,bool get){
-    string temp;
-    int s;
-    if(succeded){
-        temp="HTTP/1.1 200 OK \\r\\n";
-        s=temp.size();
-        if(get){
-//            s+=(file.size()+16);
-//            temp+=("Content-length: "+to_string(calculate_size(s)));
-//            temp+="\n\n";
-            temp+=file+"\\r\\n";
 
-        }
-        file=temp+"\\r\\n";
-        file+='\0';
-//     cout<<file<<"\n";
+void extract_headers_and_data(const std::string& response, std::string& headers, std::string& data) {
+    std::istringstream responseStream(response);
+
+    // Read the status line (e.g., "HTTP/1.1 200 OK")
+    std::string statusLine;
+    std::getline(responseStream, statusLine);
+    headers = statusLine;
+
+    // Read the headers until an empty line is encountered
+    std::string line;
+    while (std::getline(responseStream, line) && !line.empty()) {
+        headers += "\r\n" + line;
     }
-    else{
-        temp="HTTP/1.1 404 NotFound \\r\\n";
-        s=file.size()+16;
-        temp+=("Content-length: "+ to_string(calculate_size(s)));
-        temp+="\\r\\n\\r\\n";
-        file=temp;
-    }
+
+    // Reset the stream to the beginning of the content
+    responseStream.seekg(0, std::ios::beg);
+
+    // Skip the status line and headers
+    while (std::getline(responseStream, line) && !line.empty());
+
+    // Read the rest of the stream as the data
+    std::ostringstream dataStream;
+    dataStream << responseStream.rdbuf();
+    data = dataStream.str();
 }
+
+void build_response(std::string& response, const std::string& imageString, bool succeeded, bool includeImage) {
+    std::ostringstream responseStream;
+
+    if (succeeded) {
+        responseStream << "HTTP/1.1 200 OK\r\n";
+
+        if (includeImage) {
+            responseStream << "Content-Length: " << imageString.size() << "\r\n";
+        }
+
+        responseStream << "\r\n";
+
+        if (includeImage) {
+            responseStream << imageString;
+        }
+    } else {
+        responseStream << "HTTP/1.1 404 NotFound\r\n";
+        responseStream << "Content-Length: 0\r\n";
+        responseStream << "\r\n";
+    }
+
+    response = responseStream.str();
+}
+
 void ParseHttpGet(const std::string& httpRequest, std::string& filePath,string &file) {
     // Assuming a simple GET request format like "GET /path/to/file HTTP/1.1"
     std::istringstream ss(httpRequest);
     std::string method, path;
     ss >> method >> path ;
     filePath=path;
-    change_file_to_string(path,file);
-
+    file=change_file_to_string_image(path);
 }
 
 void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::string& fileContents) {
@@ -115,6 +142,7 @@ void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::s
     saveString(fileContents, ExtractFilename(path));
 }
 
+
 void *HandleTCPClient(void *arg) {
     int clientSock = *((int *)arg);
     free(arg);
@@ -134,25 +162,24 @@ void *HandleTCPClient(void *arg) {
             // Check if it's a GET or POST request
             if (httpRequest.find("GET") == 0) {
                 ParseHttpGet(httpRequest, filePath, file);
-                build_response(file, true, true);
-//                cout<<file<<"\n";
+                int size=file.size();
+
+                string response="HTTP/1.1 200 OK\\r\\n content-length: "+to_string(calculate_size(size))+"\\r\\n\\r\\n";
+
+                send(clientSock, response.c_str(), response.size(), 0);
                 while (!file.empty()) {
                     // Send the contents of 'file' in chunks
-                    size_t bytesToSend = min(BUFFERSIZE, (int)file.size());
+                    size_t bytesToSend = min(BUFFERSIZE, (int)file.length());
 
                     std::string buf = file.substr(0, bytesToSend);
-                    cout<<buf<<"\n";
                     send(clientSock, buf.c_str(), buf.size(), 0);
                     file.erase(0, bytesToSend);
                     // If there's more to send, continue the loop
                 }
 
-//                std::cout << "Received GET request for file: " << filePath << std::endl;
             } else if (httpRequest.find("POST") == 0) {
                 ParseHttpPost(httpRequest, filePath, fileContents);
-                build_response(file, true, false);
-//                std::cout << "Received POST request for file: " << filePath << std::endl;
-//                std::cout << "File contents: " << fileContents << std::endl;
+//                build_response(file, true, false);
             } else {
                 std::cerr << "Unsupported HTTP method" << std::endl;
             }

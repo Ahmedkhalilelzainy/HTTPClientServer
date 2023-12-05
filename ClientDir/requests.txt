@@ -1,1 +1,4 @@
-client_get /home/mado/Documents/HTTPClientServer/ServerDir/images.jpeg 127.0.0.1 (8008)
+client_get /home/madyelzainy/Downloads/dwsample1-html.html 127.0.0.1 (8008)
+client_get /home/madyelzainy/Downloads/test1.png 127.0.0.1 (8008)
+client_get /home/madyelzainy/Downloads/images.jpeg 127.0.0.1 (8008)
+client_get /home/madyelzainy/Downloads/test1.txt 127.0.0.1 (8008)

@@ -13,9 +13,13 @@
 using namespace std;
 int const BUFFERSIZE = 1024;
 
-void handleResponse(string request,string path,int sock,bool get){
-    string response="";
+void handleGet(const std::string& request, const std::string& path, int sock) {
+    std::vector<char> file;
+    std::string response;  // Variable to store anything before "\\r\\n\\r\\n"
+    std::string filename = extractFileName(request);
+
     ssize_t numBytes = send(sock, request.c_str(), request.size(), 0);
+
     if (numBytes < 0)
         DieWithSystemMessage("sending file failed");
     else if (numBytes != request.size())
@@ -23,36 +27,58 @@ void handleResponse(string request,string path,int sock,bool get){
 
     char buffer[BUFFERSIZE];
     ssize_t totalBytesRcvd = 0;
-    while (true) {
-        ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE-1, 0);
+    ssize_t totalSize = -1;
+    bool first_time = true, data_begun_sending = false;
 
-        if (numBytesReceived < 0){
+    while (true) {
+        ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE, 0);
+
+        if (numBytesReceived < 0) {
             DieWithSystemMessage("receiving file failed");
-        }
-        else if (numBytesReceived == 0) {
+        } else if (numBytesReceived == 0) {
             break; // Connection closed by the server
         }
-        cout<<buffer<<"\n";
+
         totalBytesRcvd += numBytesReceived;
 
-        string temp (buffer);
-//        cout<<temp<<" fasla "<<"\n";
-        response+=temp;
-        if(response.find("\\r\\n\\r\\n")!=std::string::npos){
+        if (first_time) {
+            size_t headerEndPos = std::string(buffer, numBytesReceived).find("\\r\\n\\r\\n");
+            if (headerEndPos != std::string::npos) {
+                data_begun_sending = true;
+                response += std::string(buffer, buffer + headerEndPos + 8);
+                file.insert(file.end(), buffer + headerEndPos + 8, buffer + numBytesReceived);
+            } else {
+                response += std::string(buffer, buffer + numBytesReceived);
+            }
 
-            break;
+            totalSize = extractContentSize(buffer);
+            if (totalSize == -1) {
+                DieWithSystemMessage("error: file size not received");
+            }
+            first_time = false;
+        } else if (data_begun_sending) {
+            file.insert(file.end(), buffer, buffer + numBytesReceived);
         }
 
-    }
-//    cout<<response<<"\n";
+        if (totalSize <= totalBytesRcvd)
+            break;
 
-//    cout<<response;
-//    saveString(response, ExtractFilename(path));
+    }
+
+    cout<<response<<"\n";
+
+    saveBinaryData(file, filename);
     if (totalBytesRcvd == 0)
         DieWithUserMessage("receiving file", "connection closed prematurely");
+}
 
-//    std::cout << "Received file successfully and saved as 'received_file.txt'" << std::endl;
+void handleResponse(string request, string path, int sock, bool get) {
+    if(get){
+        handleGet(request,path,sock);
+    }
+    else{
 
+    }
 }
 
 //void handleResponse(string request,string path,int sock,bool get){
@@ -88,7 +114,7 @@ void handleResponse(string request,string path,int sock,bool get){
 //    if (totalBytesRcvd == 0)
 //        DieWithUserMessage("receiving file", "connection closed prematurely");
 //
-//    std::cout << "Received file successfully and saved as 'received_file.txt'" << std::endl;
+//    cout << "Received file successfully and saved as 'received_file.txt'" << endl;
 //
 //}
 
@@ -142,7 +168,7 @@ int main(int argc, char *argv[]) {
 
     // Check if the file is opened successfully
     if (!inputFile.is_open()) {
-        cerr << "Error opening file." << std::endl;
+        cerr << "Error opening file." << "\n";
         return 1; // Return an error code
     }
     string line;
