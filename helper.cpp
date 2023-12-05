@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <climits>
 #include <vector>
 #include <filesystem>
-
 using namespace std;
+int DEFUALT_TIME = 5* 1000; // 5  S
+int MIN_TIME = 1000;
 void DieWithUserMessage(const char *msg, const char *detail) {
     fputs(msg, stderr);
     fputs(": ", stderr);
@@ -90,7 +89,6 @@ string ExtractFilename(const std::string& filePath) {
 
 size_t extractContentSize(const std::string& httpResponse) {
     size_t contentSize = 0;
-
     // Find the "Content-Length:" header in the response
     int pos = httpResponse.find("content-length: ");
     if (pos != std::string::npos) {
@@ -104,12 +102,20 @@ size_t extractContentSize(const std::string& httpResponse) {
             }
         }
     }
-
     return contentSize;
 }
+
 std::string extractFileName(const std::string& httpRequest) {
-    // Find the position of the first space after "GET "
-    size_t startPos = httpRequest.find("GET ") + 4; // Move to the character after "GET "
+    // Determine the HTTP method (GET or POST)
+    size_t methodPos = httpRequest.find(" ");
+    if (methodPos == std::string::npos) {
+        return ""; // Invalid request format
+    }
+
+    std::string httpMethod = httpRequest.substr(0, methodPos);
+
+    // Find the position of the first space after the HTTP method
+    size_t startPos = methodPos + 1;
     size_t endPos = httpRequest.find(" ", startPos);
 
     // Extract the substring between startPos and endPos

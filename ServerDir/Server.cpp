@@ -5,13 +5,16 @@
 #include <netinet/in.h>
 #include <iostream>
 #include <sstream>
+#include <mutex>
 #include "../helper.cpp"
+
 using namespace std;
 //http get c.png 7070
 //http get c.png 7070
 static const int MAXPENDING = 10; // Maximum outstanding connection requests
 int const BUFFERSIZE = 1024;
-
+mutex count_mtx;
+int clients = 0;
 //void *HandleTCPClient(void *arg) {
 //    int clientSock = *((int *) arg);
 //    free(arg); // Free memory allocated for the argument
@@ -63,56 +66,6 @@ int calculate_size(int data_size){
     return Request_size;
 }
 
-void extract_headers_and_data(const std::string& response, std::string& headers, std::string& data) {
-    std::istringstream responseStream(response);
-
-    // Read the status line (e.g., "HTTP/1.1 200 OK")
-    std::string statusLine;
-    std::getline(responseStream, statusLine);
-    headers = statusLine;
-
-    // Read the headers until an empty line is encountered
-    std::string line;
-    while (std::getline(responseStream, line) && !line.empty()) {
-        headers += "\r\n" + line;
-    }
-
-    // Reset the stream to the beginning of the content
-    responseStream.seekg(0, std::ios::beg);
-
-    // Skip the status line and headers
-    while (std::getline(responseStream, line) && !line.empty());
-
-    // Read the rest of the stream as the data
-    std::ostringstream dataStream;
-    dataStream << responseStream.rdbuf();
-    data = dataStream.str();
-}
-
-void build_response(std::string& response, const std::string& imageString, bool succeeded, bool includeImage) {
-    std::ostringstream responseStream;
-
-    if (succeeded) {
-        responseStream << "HTTP/1.1 200 OK\r\n";
-
-        if (includeImage) {
-            responseStream << "Content-Length: " << imageString.size() << "\r\n";
-        }
-
-        responseStream << "\r\n";
-
-        if (includeImage) {
-            responseStream << imageString;
-        }
-    } else {
-        responseStream << "HTTP/1.1 404 NotFound\r\n";
-        responseStream << "Content-Length: 0\r\n";
-        responseStream << "\r\n";
-    }
-
-    response = responseStream.str();
-}
-
 void ParseHttpGet(const std::string& httpRequest, std::string& filePath,string &file) {
     // Assuming a simple GET request format like "GET /path/to/file HTTP/1.1"
     std::istringstream ss(httpRequest);
@@ -122,25 +75,7 @@ void ParseHttpGet(const std::string& httpRequest, std::string& filePath,string &
     file=change_file_to_string_image(path);
 }
 
-void ParseHttpPost(const std::string& httpRequest, std::string& filePath, std::string& fileContents) {
-    // Assuming a simple POST request format like "POST /path/to/file HTTP/1.1\nContent-Length: 12\n\nHello, world!"
-    std::istringstream ss(httpRequest);
-    std::string method, path, version;
-    ss >> method >> path >>fileContents ;
-    if (method == "POST") {
-        // Extract the file path from the request
-        filePath = path.substr(1); // Remove leading '/'
 
-        // Find the position of the double newline indicating the start of the content
-        size_t contentStart = httpRequest.find("\\r\\n\\r\\n");
-
-        if (contentStart != std::string::npos) {
-            // Extract the content from the request
-            fileContents = httpRequest.substr(contentStart + 2);
-        }
-    }
-    saveString(fileContents, ExtractFilename(path));
-}
 
 
 void *HandleTCPClient(void *arg) {
@@ -148,38 +83,94 @@ void *HandleTCPClient(void *arg) {
     free(arg);
 
     char buffer[BUFFERSIZE];
+    count_mtx.lock();
+    clients++;
+    double time = 1.0 * DEFUALT_TIME / clients;
+    if (time < MIN_TIME)
+        time = MIN_TIME;
+    count_mtx.unlock();
 
+    auto currentTime = std::chrono::system_clock::now();
+
+    // Convert the current time to milliseconds
+    auto currentTimeMillis = std::chrono::time_point_cast<std::chrono::milliseconds>(currentTime);
+
+    // Extract the count of milliseconds as a double
+    double milliseconds = currentTimeMillis.time_since_epoch().count() / 1.0;
+    // Receive and send data in a loop until the client closes the connection
+    double currtime=milliseconds+time;
     // Receive and send data in a loop until the client closes the connection
     while (true) {
-        ssize_t numBytesRcvd = recv(clientSock, buffer, BUFFERSIZE - 1, 0);
+        auto currentTime1 = std::chrono::system_clock::now();
+
+        // Convert the current time to milliseconds
+        auto currentTimeMillis1 = std::chrono::time_point_cast<std::chrono::milliseconds>(currentTime1);
+
+        // Extract the count of milliseconds as a double
+        double milliseconds1 = currentTimeMillis1.time_since_epoch().count() / 1.0;
+        if (milliseconds1>currtime)
+        {
+            cout << "time out finish  " << time << endl;
+            close(clientSock);
+            count_mtx.lock();
+            clients--;
+            count_mtx.unlock();
+            pthread_exit(NULL);
+
+        }
+        ssize_t numBytesRcvd = recv(clientSock, buffer, BUFFERSIZE , 0);
 
         if (numBytesRcvd > 0) {
             buffer[numBytesRcvd] = '\0'; // Null-terminate the received data
-
-            std::string httpRequest(buffer);
-
-            std::string method, path, version, filePath, fileContents,file="";
+            std::string httpRequest(buffer,numBytesRcvd);
+            memset(buffer, 0, sizeof(buffer));
+            std::string method, path, version, filePath, fileContents;
             // Check if it's a GET or POST request
             if (httpRequest.find("GET") == 0) {
-                ParseHttpGet(httpRequest, filePath, file);
-                int size=file.size();
-
-                string response="HTTP/1.1 200 OK\\r\\n content-length: "+to_string(calculate_size(size))+"\\r\\n\\r\\n";
-
+                ParseHttpGet(httpRequest, filePath, fileContents);
+                int size=fileContents.size();
+                string response ;
+                if(!fileContents.empty())
+                     response="HTTP/1.1 200 OK\\r\\n content-length: "+to_string(calculate_size(size))+"\\r\\n\\r\\n";
+                else
+                     response="HTTP/1.1 404 NOTFOUND\\r\\n content-length: 44\\r\\n\\r\\n";
                 send(clientSock, response.c_str(), response.size(), 0);
-                while (!file.empty()) {
+                while (!fileContents.empty()) {
                     // Send the contents of 'file' in chunks
-                    size_t bytesToSend = min(BUFFERSIZE, (int)file.length());
+                    size_t bytesToSend = min(BUFFERSIZE, (int)fileContents.length());
+                bool first_time = true, data_begun_sending = false;
 
-                    std::string buf = file.substr(0, bytesToSend);
+                    std::string buf = fileContents.substr(0, bytesToSend);
                     send(clientSock, buf.c_str(), buf.size(), 0);
-                    file.erase(0, bytesToSend);
+                    fileContents.erase(0, bytesToSend);
                     // If there's more to send, continue the loop
                 }
 
             } else if (httpRequest.find("POST") == 0) {
-                ParseHttpPost(httpRequest, filePath, fileContents);
-//                build_response(file, true, false);
+                ssize_t totalBytesRcvd = numBytesRcvd;
+                ssize_t totalSize = -1;
+                totalSize = extractContentSize(httpRequest);
+                string response="HTTP/1.1 200 OK\\r\\n content-length: 38\\r\\n\\r\\n";
+                send(clientSock,response.c_str(),response.size(),0);
+                std::vector<char> file;
+                string filename = extractFileName(httpRequest);
+                while (true) {
+                    ssize_t numBytesReceived = recv(clientSock, buffer, min(BUFFERSIZE,(int)(totalSize-totalBytesRcvd)), 0);
+                    if (numBytesReceived < 0) {
+                        DieWithSystemMessage("receiving file failed");
+                    } else if (numBytesReceived == 0) {
+                        break; // Connection closed by the server
+                    }
+                    totalBytesRcvd += numBytesReceived;
+                    file.insert(file.end(), buffer, buffer + numBytesReceived);
+                    if (totalSize <= totalBytesRcvd){
+                        break;
+                    }
+                }
+                saveBinaryData(file, filename);
+                if (totalBytesRcvd == 0)
+                    DieWithUserMessage("receiving file", "connection closed prematurely");
+
             } else {
                 std::cerr << "Unsupported HTTP method" << std::endl;
             }
@@ -191,8 +182,10 @@ void *HandleTCPClient(void *arg) {
             break;  // Exit the loop if an error occurs
         }
     }
-
     close(clientSock);
+    count_mtx.lock();
+    clients--;
+    count_mtx.unlock();
     pthread_exit(NULL);
 }
 

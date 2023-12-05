@@ -12,23 +12,41 @@
 
 using namespace std;
 int const BUFFERSIZE = 1024;
+int calculate_size(int data_size,int path_size){
 
-void handleGet(const std::string& request, const std::string& path, int sock) {
-    std::vector<char> file;
+    int Request_size=data_size+44+path_size;
+    int Request_size_no_of_digits= to_string(Request_size).size();
+    int Request_size_after_adding_no_of_digits= to_string(Request_size+Request_size_no_of_digits).size();
+    if((Request_size_after_adding_no_of_digits)!=Request_size_no_of_digits){
+        Request_size+=(Request_size_no_of_digits+1);
+    }
+    else{
+        Request_size+=Request_size_no_of_digits;
+    }
+    return Request_size;
+}
+
+void handleGet(const std::string& path, int sock) {
+    string request = "GET " +
+                     path +
+                     " " +
+                     "HTTP/1.1";
     std::string response;  // Variable to store anything before "\\r\\n\\r\\n"
-    std::string filename = extractFileName(request);
 
     ssize_t numBytes = send(sock, request.c_str(), request.size(), 0);
 
-    if (numBytes < 0)
+    if (numBytes < 0) {
         DieWithSystemMessage("sending file failed");
-    else if (numBytes != request.size())
+    } else if (numBytes != request.size()) {
         DieWithUserMessage("sending file failed", "sent unexpected number of bytes");
+    }
 
     char buffer[BUFFERSIZE];
     ssize_t totalBytesRcvd = 0;
     ssize_t totalSize = -1;
     bool first_time = true, data_begun_sending = false;
+    std::vector<char> file;
+    std::string filename = extractFileName(request);
 
     while (true) {
         ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE, 0);
@@ -38,7 +56,6 @@ void handleGet(const std::string& request, const std::string& path, int sock) {
         } else if (numBytesReceived == 0) {
             break; // Connection closed by the server
         }
-
         totalBytesRcvd += numBytesReceived;
 
         if (first_time) {
@@ -56,67 +73,66 @@ void handleGet(const std::string& request, const std::string& path, int sock) {
                 DieWithSystemMessage("error: file size not received");
             }
             first_time = false;
+
+            // Check for the specified string in the received data
+            if (response.find("HTTP/1.1 404 NOTFOUND") != std::string::npos) {
+                break;
+            }
         } else if (data_begun_sending) {
             file.insert(file.end(), buffer, buffer + numBytesReceived);
         }
 
         if (totalSize <= totalBytesRcvd)
             break;
-
+    }
+    cout<<response<<"\n";
+    // Skip calling saveBinaryData if the specified string is found
+    if (response.find("HTTP/1.1 404 NOTFOUND") == std::string::npos) {
+        // Uncomment the following line if you want to call saveBinaryData in other cases
+         saveBinaryData(file, filename);
     }
 
-    cout<<response<<"\n";
-
-    saveBinaryData(file, filename);
     if (totalBytesRcvd == 0)
         DieWithUserMessage("receiving file", "connection closed prematurely");
 }
 
-void handleResponse(string request, string path, int sock, bool get) {
+
+void handlePost(const std::string&path,int sock){
+    string data = change_file_to_string_image(path);
+    if(data.empty()){
+        cout<<"File Not found in client\n";
+        return;
+    }
+    string request = "POST " +
+              path +
+              " " +
+              "HTTP/1.1 \\r\\n " +
+              "content-length: "+ to_string(calculate_size((int)data.size(),(int)path.size()))+"\\r\\n\\r\\n";
+    send(sock, request.c_str(), request.size(), 0);
+    char buffer[BUFFERSIZE];
+    recv(sock, buffer, BUFFERSIZE, 0);
+    buffer[BUFFERSIZE]='\0';
+    cout<<buffer<<"\n";
+    while (!data.empty()) {
+        // Send the contents of 'file' in chunks
+        size_t bytesToSend = min(BUFFERSIZE, (int)data.size());
+
+        std::string buf = data.substr(0, bytesToSend);
+        send(sock, buf.c_str(), buf.size(), 0);
+        data.erase(0, bytesToSend);
+    }
+
+}
+
+void handleResponse( string path, int sock, bool get) {
     if(get){
-        handleGet(request,path,sock);
+        handleGet(path,sock);
     }
     else{
-
+        handlePost(path,sock);
     }
 }
 
-//void handleResponse(string request,string path,int sock,bool get){
-//    string response="";
-//    ssize_t numBytes = send(sock, request.c_str(), request.size(), 0);
-//    if (numBytes < 0)
-//        DieWithSystemMessage("sending file failed");
-//    else if (numBytes != request.size())
-//        DieWithUserMessage("sending file failed", "sent unexpected number of bytes");
-//
-//
-//    char buffer[BUFFERSIZE];
-//    ssize_t totalBytesRcvd = 0;
-//    while (true) {
-//
-//        ssize_t numBytesReceived = recv(sock, buffer, BUFFERSIZE-1, 0);
-//        if (numBytesReceived < 0){
-//            DieWithSystemMessage("receiving file failed");
-//        }
-//        else if (numBytesReceived == 0) {
-//            break; // Connection closed by the server
-//        }
-//        totalBytesRcvd += numBytesReceived;
-//        string temp(buffer);
-//        response+=temp;
-//        if(response.find("\n\n")!=0){
-//            break;
-//        }
-//
-//    }
-//    cout<<"hena"<<response<<"\n";
-////    saveString(response, ExtractFilename(path));
-//    if (totalBytesRcvd == 0)
-//        DieWithUserMessage("receiving file", "connection closed prematurely");
-//
-//    cout << "Received file successfully and saved as 'received_file.txt'" << endl;
-//
-//}
 
 
 
@@ -151,7 +167,6 @@ int main(int argc, char *argv[]) {
         DieWithSystemMessage("converting IPv4 to binary address failed");
     servAddr.sin_port = htons(servPort);
 // ServerDir port
-// Establish the connection to the echo server
     if (connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         DieWithSystemMessage("connection failed");
     //reading the command
@@ -189,34 +204,10 @@ int main(int argc, char *argv[]) {
         string path = tokens[1];
         string request;
         if (type_of_request == "client_get") {
-            request = "GET " +
-                      path +
-                      " " +
-                      "HTTP/1.1";
-            handleResponse(request,path,sock,true);
+            handleResponse(path,sock,true);
         } else if (type_of_request == "client_post") {
-            string data;
-            change_file_to_string(path,data);
-            int Request_size =38+path.length()+data.length();
-            int Request_size_no_of_digits= to_string(Request_size).size();
-            int Request_size_after_adding_no_of_digits= to_string(Request_size+Request_size_no_of_digits).size();
-            if((Request_size_after_adding_no_of_digits)!=Request_size_no_of_digits){
-                Request_size+=(Request_size_no_of_digits+1);
-            }
-            else{
-                Request_size+=Request_size_no_of_digits;
-            }
-
-            request = "POST " +
-                      path +
-                      " " +
-                      "HTTP/1.1 \n " +
-                      "Content-Length: "+ to_string(Request_size);
-                      +"\n\n"+
-                      data;
-            handleResponse(request,path,sock,false);
+            handleResponse(path,sock,false);
         }
-//        cout << request << "\n";
     }
     inputFile.close();
     close(sock);
