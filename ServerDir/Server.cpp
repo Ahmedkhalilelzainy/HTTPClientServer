@@ -9,48 +9,12 @@
 #include "../helper.cpp"
 
 using namespace std;
-//http get c.png 7070
-//http get c.png 7070
+
 static const int MAXPENDING = 10; // Maximum outstanding connection requests
 int const BUFFERSIZE = 1024;
 mutex count_mtx;
 int clients = 0;
-//void *HandleTCPClient(void *arg) {
-//    int clientSock = *((int *) arg);
-//    free(arg); // Free memory allocated for the argument
-//
-//    char buffer[BUFFERSIZE]; // BUFFERSIZE is assumed to be defined somewhere
-//    ssize_t numBytesRcvd;
-//
-//    // Receive and send data in a loop until the client closes the connection
-//    while ((numBytesRcvd = recv(clientSock, buffer, BUFFERSIZE - 1, 0)) > 0) {
-//        buffer[numBytesRcvd] = '\0'; // Null-terminate the received data
-//        printf("Received: %s", buffer);
-//
-//        // Process the received data or perform other actions as needed
-//
-//        // Echo the data back to the client
-//        ssize_t numBytesSent = send(clientSock, buffer, numBytesRcvd, 0);
-//        if (numBytesSent < 0)
-//            DieWithSystemMessage("send() failed");
-//        else if (numBytesSent != numBytesRcvd)
-//            DieWithUserMessage("send()", "sent unexpected number of bytes");
-//    }
-//
-//    if (numBytesRcvd == 0) {
-//        // ClientDir closed the connection
-//        printf("ClientDir closed the connection.\n");
-//    } else if (numBytesRcvd < 0) {
-//        // Error occurred while receiving
-//        DieWithSystemMessage("recv() failed");
-//    }
-//
-//    close(clientSock); // Close the client socket
-//    pthread_exit(NULL); // Exit the thread
-//}
 
-//HTTP/1.1 200 OK \r\n
-//data
 #define BUFFERSIZE 1024
 int calculate_size(int data_size){
     string temp="HTTP/1.1 200 OK\\r\\n content-length: \\r\\n\\r\\n";
@@ -98,7 +62,7 @@ void *HandleTCPClient(void *arg) {
     // Extract the count of milliseconds as a double
     double milliseconds = currentTimeMillis.time_since_epoch().count() / 1.0;
     // Receive and send data in a loop until the client closes the connection
-    double currtime=milliseconds+time;
+    double finishtime=milliseconds+time;
     // Receive and send data in a loop until the client closes the connection
     while (true) {
         auto currentTime1 = std::chrono::system_clock::now();
@@ -108,15 +72,14 @@ void *HandleTCPClient(void *arg) {
 
         // Extract the count of milliseconds as a double
         double milliseconds1 = currentTimeMillis1.time_since_epoch().count() / 1.0;
-        if (milliseconds1>currtime)
+        if (milliseconds1>finishtime)
         {
             cout << "time out finish  " << time << endl;
             close(clientSock);
             count_mtx.lock();
             clients--;
             count_mtx.unlock();
-            pthread_exit(NULL);
-
+            pthread_exit(nullptr);
         }
         ssize_t numBytesRcvd = recv(clientSock, buffer, BUFFERSIZE , 0);
 
@@ -138,8 +101,6 @@ void *HandleTCPClient(void *arg) {
                 while (!fileContents.empty()) {
                     // Send the contents of 'file' in chunks
                     size_t bytesToSend = min(BUFFERSIZE, (int)fileContents.length());
-                bool first_time = true, data_begun_sending = false;
-
                     std::string buf = fileContents.substr(0, bytesToSend);
                     send(clientSock, buf.c_str(), buf.size(), 0);
                     fileContents.erase(0, bytesToSend);
@@ -181,12 +142,13 @@ void *HandleTCPClient(void *arg) {
 //            std::cerr << "Error receiving data from client." << std::endl;
             break;  // Exit the loop if an error occurs
         }
+
     }
     close(clientSock);
     count_mtx.lock();
     clients--;
     count_mtx.unlock();
-    pthread_exit(NULL);
+    pthread_exit(nullptr);
 }
 
 
