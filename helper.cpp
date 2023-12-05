@@ -6,8 +6,8 @@
 #include <vector>
 #include <filesystem>
 using namespace std;
-int DEFUALT_TIME = 5* 1000; // 5  S
-int MIN_TIME = 1000;
+int DEFUALT_TIME = 2000; // 5  S
+int MIN_TIME = DEFUALT_TIME/10;
 void DieWithUserMessage(const char *msg, const char *detail) {
     fputs(msg, stderr);
     fputs(": ", stderr);
@@ -21,34 +21,18 @@ void DieWithSystemMessage(const char *msg) {
     exit(1);
 }
 //        DieWithSystemMessage("Error opening file");
-void change_file_to_string(string filePath,string &fileContent){
-    std::ifstream infile(filePath,std::ios::binary);
-    if (!infile) {
-        DieWithSystemMessage("Error opening file");
-    }
 
-    std::string content;
-    std::string line;
+string change_file_to_string_image(const std::string& FilePath) {
+    std::ifstream File(FilePath, std::ios::binary);
 
-    while (std::getline(infile, line)) {
-        content += line +'\n'; // You can modify this line based on your requirements
-    }
-    content.pop_back();
-
-    infile.close();
-    fileContent=content;
-}
-string change_file_to_string_image(const std::string& imageFilePath) {
-    std::ifstream imageFile(imageFilePath, std::ios::binary);
-
-    if (!imageFile) {
-        std::cerr << "Error opening image file: " << imageFilePath << std::endl;
+    if (!File) {
+        std::cerr << "Error opening  file: " << FilePath << std::endl;
         return "";
     }
 
-    std::ostringstream imageStream;
-    imageStream << imageFile.rdbuf();
-    return imageStream.str();
+    std::ostringstream fileStream;
+    fileStream << File.rdbuf();
+    return fileStream.str();
 }
 
 void saveBinaryData(const std::vector<char>& data, const std::string& fileName) {
@@ -66,26 +50,7 @@ void saveBinaryData(const std::vector<char>& data, const std::string& fileName) 
     outfile.write(data.data(), data.size());
     outfile.close();
 }
-void saveString(const std::string& content, const std::string& fileName) {
-    std::ofstream outfile(fileName, std::ios::binary);
-    if (!outfile) {
-        std::cerr << "Error opening file for writing: " << fileName << std::endl;
-        return;
-    }
 
-    outfile.write(content.c_str(), content.size());
-    outfile.close();
-}
-
-string ExtractFilename(const std::string& filePath) {
-    size_t lastSlash = filePath.find_last_of('/');
-    if (lastSlash != std::string::npos) {
-        return filePath.substr(lastSlash + 1);
-    } else {
-        // No slash found, return the entire string
-        return filePath;
-    }
-}
 
 size_t extractContentSize(const std::string& httpResponse) {
     size_t contentSize = 0;

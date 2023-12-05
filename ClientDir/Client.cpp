@@ -89,8 +89,8 @@ void handleGet(const std::string& path, int sock) {
     // Skip calling saveBinaryData if the specified string is found
     if (response.find("HTTP/1.1 404 NOTFOUND") == std::string::npos) {
         // Uncomment the following line if you want to call saveBinaryData in other cases
-         saveBinaryData(file, filename);
     }
+    saveBinaryData(file, filename);
 
     if (totalBytesRcvd == 0)
         DieWithUserMessage("receiving file", "connection closed prematurely");
@@ -176,6 +176,7 @@ int main(int argc, char *argv[]) {
         DieWithSystemMessage("cwd error"); // Return an error code
     }
     string filepath(cwd);
+    string filepath_temp=filepath;
     filepath+=("/requests.txt");
 
     // Open a file for reading
@@ -202,10 +203,13 @@ int main(int argc, char *argv[]) {
 
         string type_of_request = tokens[0];
         string path = tokens[1];
+
         string request;
         if (type_of_request == "client_get") {
             handleResponse(path,sock,true);
         } else if (type_of_request == "client_post") {
+            path=filepath_temp+'/'+path;
+            cout<<path<<"\n";
             handleResponse(path,sock,false);
         }
     }
